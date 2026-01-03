@@ -1,21 +1,25 @@
 {
-  "name": "livewhiteboard",
+  "name": "Livewhiteboard",
   "version": "1.0.0",
+  "type": "module",
   "description": "A real-time collaborative workspace built with Socket.io, Next.js, and PostgreSQL.",
   "main": "index.js",
   "scripts": {
+    "dev": "node --loader ts-node/esm src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^20.x.x",
     "prisma": "^5.x.x",
     "ts-node": "^10.x.x",
     "typescript": "^5.x.x"
   },
   "dependencies": {
-    "@prisma/client": "^5.x.x"
+    "@prisma/client": "^5.x.x",
+    "express": "^5.2.1"
   }
 }
