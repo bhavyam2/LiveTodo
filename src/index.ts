@@ -1,43 +1,47 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // Allows any frontend to connect for now
+  }
+});
+
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// 1. Root Route - This fixes the "Cannot GET /" error
-app.get('/', (req, res) => {
-  res.send('Welcome to the LiveWhiteboard API!');
+// --- WebSocket Logic ---
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Users "join" a specific board room based on the board ID
+  socket.on('join-board', (boardId: string) => {
+    socket.join(boardId);
+    console.log(`User ${socket.id} joined board: ${boardId}`);
+  });
+
+  // When someone draws, we send that data ONLY to others in the same room
+  socket.on('draw', (data: { boardId: string, x: number, y: number, color: string }) => {
+    socket.to(data.boardId).emit('draw-update', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
+  });
 });
 
-// 2. Health Check
+// --- API Routes ---
 app.get('/health', (req, res) => {
-  res.json({ status: 'LiveWhiteboard server is running!' });
+  res.json({ status: 'Real-time server is active' });
 });
 
-// 3. Test Route - Create a Board in Supabase
-app.post('/test-create-board', async (req, res) => {
-  try {
-    const newBoard = await prisma.board.create({
-      data: {
-        title: "My First Whiteboard",
-        owner: {
-          create: {
-            email: "bhavumehrotra@gmail.com", // Using your email from your profile
-            name: "Bhavya"
-          }
-        }
-      }
-    });
-    res.json({ message: "Success!", board: newBoard });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to create board" });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server ready at: http://localhost:${PORT}`);
+// IMPORTANT: Use httpServer.listen, not app.listen
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Real-time server running at: http://localhost:${PORT}`);
 });

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.io Test</title>
+</head>
+<body>
+    <h1>Socket.io Connection Test</h1>
+    <p id="status">Connecting...</p>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // Connect to local Express server
+        const socket = io("http://localhost:3000");
+
+        socket.on("connect", () => {
+            document.getElementById("status").innerText = "Connected! Check your terminal.";
+            console.log("Connected with ID:", socket.id);
+        });
+
+        socket.on("disconnect", () => {
+            document.getElementById("status").innerText = "Disconnected.";
+        });
+    </script>
+</body>
+</html>
