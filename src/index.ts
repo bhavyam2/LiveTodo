@@ -1,7 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { PrismaClient } from '@prisma/client';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -12,11 +11,10 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // Allows any frontend to connect for now
+    origin: "*",
   }
 });
 
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
@@ -24,49 +22,29 @@ app.use(express.json());
 // Get project root path
 const projectRoot = join(__dirname, '..');
 
-// Serve todolist.html at the root (must come before static middleware)
+// Serve todolist.html at the root
 app.get('/', (req, res) => {
-  const filePath = join(projectRoot, 'todolist.html');
-  console.log('Serving todolist.html from:', filePath);
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error('Error sending file:', err);
-      res.status(500).send('Error loading page: ' + err.message);
-    }
-  });
+  res.sendFile(join(projectRoot, 'todolist.html'));
 });
 
-// Serve static files from the project root (for other files like test.html)
 app.use(express.static(projectRoot));
 
-// --- WebSocket Logic ---
+// WebSocket event handlers
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-
-  // Users "join" a specific todo list room
   socket.on('join-todolist', (listId: string) => {
-    // Check if already in the room to prevent duplicate joins
     const currentRooms = Array.from(socket.rooms);
     if (!currentRooms.includes(listId)) {
       socket.join(listId);
-      console.log(`User ${socket.id} joined todo list: ${listId}`);
-    } else {
-      console.log(`User ${socket.id} already in todo list: ${listId}`);
     }
     
-    // Get accurate user count (room.size includes the room name itself, so we subtract 1)
-    const room = io.sockets.adapter.rooms.get(listId);
-    const userCount = room ? Math.max(0, room.size - 1) : 0;
-    
-    console.log(`Todo list ${listId} now has ${userCount} user(s)`);
-    
-    // Notify all users in the room about the updated user count
-    io.to(listId).emit('user-count-updated', { count: userCount });
+    setTimeout(() => {
+      const room = io.sockets.adapter.rooms.get(listId);
+      const userCount = room ? room.size : 0;
+      io.to(listId).emit('user-count-updated', { count: userCount });
+    }, 100);
   });
 
-  // Todo list events - broadcast to all OTHER users in the room
   socket.on('todo-add', (data: { listId: string, todo: any }) => {
-    // Broadcast to all other users in the room (not the sender)
     socket.to(data.listId).emit('todo-added', data.todo);
   });
 
@@ -82,20 +60,17 @@ io.on('connection', (socket) => {
     socket.to(data.listId).emit('todo-toggled', { todoId: data.todoId, completed: data.completed });
   });
 
-  // Legacy board events (keeping for compatibility)
   socket.on('join-board', (boardId: string) => {
     const currentRooms = Array.from(socket.rooms);
     if (!currentRooms.includes(boardId)) {
       socket.join(boardId);
-      console.log(`User ${socket.id} joined board: ${boardId}`);
     }
     
-    const room = io.sockets.adapter.rooms.get(boardId);
-    const userCount = room ? Math.max(0, room.size - 1) : 0;
-    console.log(`Board ${boardId} now has ${userCount} user(s)`);
-    
-    // Notify all users in the room about the updated user count
-    io.to(boardId).emit('user-count-updated', { count: userCount });
+    setTimeout(() => {
+      const room = io.sockets.adapter.rooms.get(boardId);
+      const userCount = room ? room.size : 0;
+      io.to(boardId).emit('user-count-updated', { count: userCount });
+    }, 100);
   });
 
   socket.on('draw', (data: { boardId: string, x: number, y: number, color: string }) => {
@@ -103,29 +78,22 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-    
-    // Update user counts for all rooms this user was in
-    // Note: socket.rooms is still available during disconnect
     const roomsToUpdate = Array.from(socket.rooms).filter(roomId => roomId !== socket.id);
     
-    roomsToUpdate.forEach((roomId) => {
-      const room = io.sockets.adapter.rooms.get(roomId);
-      // After disconnect, the socket is removed, so room.size already reflects the new count
-      // But we need to subtract 1 because room.size includes the room name itself
-      const userCount = room ? Math.max(0, room.size - 1) : 0;
-      console.log(`Room ${roomId} now has ${userCount} user(s) after disconnect`);
-      io.to(roomId).emit('user-count-updated', { count: userCount });
-    });
+    setTimeout(() => {
+      roomsToUpdate.forEach((roomId) => {
+        const room = io.sockets.adapter.rooms.get(roomId);
+        const userCount = room ? room.size : 0;
+        io.to(roomId).emit('user-count-updated', { count: userCount });
+      });
+    }, 100);
   });
 });
 
-// --- API Routes ---
 app.get('/health', (req, res) => {
-  res.json({ status: 'Real-time server is active' });
+  res.json({ status: 'ok' });
 });
 
-// IMPORTANT: Use httpServer.listen, not app.listen
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Real-time server running at: http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
