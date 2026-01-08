@@ -1,7 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { PrismaClient } from '@prisma/client';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -16,46 +15,97 @@ const io = new Server(httpServer, {
   }
 });
 
-const prisma = new PrismaClient();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 app.use(express.json());
 
-// Serve static files (frontend)
 const projectRoot = join(__dirname, '..');
 app.use(express.static(projectRoot));
 
-// Serve todolist.html at root
 app.get('/', (req, res) => {
-  res.sendFile(join(projectRoot, 'todolist.html'));
+  const filePath = join(projectRoot, 'todolist.html');
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error('Error sending file:', err);
+      res.status(500).send('Error loading page: ' + err.message);
+    }
+  });
 });
 
-// --- WebSocket Logic ---
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  socket.on('join-todolist', (listId: string) => {
+    if (!listId || typeof listId !== 'string') return;
 
-  // Users "join" a specific board room based on the board ID
-  socket.on('join-board', (boardId: string) => {
-    socket.join(boardId);
-    console.log(`User ${socket.id} joined board: ${boardId}`);
+    const currentRooms = Array.from(socket.rooms);
+    if (!currentRooms.includes(listId)) {
+      socket.join(listId);
+    }
+    
+    const room = io.sockets.adapter.rooms.get(listId);
+    const userCount = room ? room.size : 0;
+    io.to(listId).emit('user-count-updated', { count: userCount });
   });
 
-  // When someone draws, we send that data ONLY to others in the same room
+  socket.on('todo-add', (data: { listId: string, todo: any }) => {
+    if (!data?.listId || !data?.todo) return;
+    socket.to(data.listId).emit('todo-added', data.todo);
+  });
+
+  socket.on('todo-update', (data: { listId: string, todoId: string, updates: any }) => {
+    if (!data?.listId || !data?.todoId || !data?.updates) return;
+    socket.to(data.listId).emit('todo-updated', { todoId: data.todoId, updates: data.updates });
+  });
+
+  socket.on('todo-delete', (data: { listId: string, todoId: string }) => {
+    if (!data?.listId || !data?.todoId) return;
+    socket.to(data.listId).emit('todo-deleted', { todoId: data.todoId });
+  });
+
+  socket.on('todo-toggle', (data: { listId: string, todoId: string, completed: boolean }) => {
+    if (!data?.listId || !data?.todoId || typeof data.completed !== 'boolean') return;
+    socket.to(data.listId).emit('todo-toggled', { todoId: data.todoId, completed: data.completed });
+  });
+
+  socket.on('join-board', (boardId: string) => {
+    if (!boardId || typeof boardId !== 'string') return;
+
+    const currentRooms = Array.from(socket.rooms);
+    if (!currentRooms.includes(boardId)) {
+      socket.join(boardId);
+    }
+    
+    const room = io.sockets.adapter.rooms.get(boardId);
+    const userCount = room ? room.size : 0;
+    io.to(boardId).emit('user-count-updated', { count: userCount });
+  });
+
   socket.on('draw', (data: { boardId: string, x: number, y: number, color: string }) => {
+    if (!data?.boardId || typeof data.x !== 'number' || typeof data.y !== 'number' || !data.color) return;
     socket.to(data.boardId).emit('draw-update', data);
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected');
+    const roomsToUpdate = Array.from(socket.rooms).filter(roomId => roomId !== socket.id);
+    
+    roomsToUpdate.forEach((roomId) => {
+      const room = io.sockets.adapter.rooms.get(roomId);
+      const userCount = room ? room.size : 0;
+      io.to(roomId).emit('user-count-updated', { count: userCount });
+    });
   });
 });
 
-// --- API Routes ---
 app.get('/health', (req, res) => {
-  res.json({ status: 'Real-time server is active' });
+  res.json({ status: 'active' });
 });
 
-// IMPORTANT: Use httpServer.listen, not app.listen
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Real-time server running at: http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+}).on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Please stop the other process or use a different port.`);
+    process.exit(1);
+  } else {
+    throw err;
+  }
 });

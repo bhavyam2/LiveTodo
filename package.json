@@ -2,13 +2,11 @@
   "name": "Livewhiteboard",
   "version": "1.0.0",
   "type": "module",
-  "description": "A real-time collaborative workspace built with Socket.io, Next.js, and PostgreSQL.",
+  "description": "A real-time collaborative todo list application built with Socket.io, Express, and Supabase.",
   "main": "index.js",
   "scripts": {
     "dev": "node --loader ts-node/esm src/index.ts",
-    "build": "npx prisma generate",
     "start": "node --loader ts-node/esm src/index.ts",
-    "postinstall": "npx prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

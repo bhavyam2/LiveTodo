@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Todo List</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .connection-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .status-connected {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .status-disconnected {
+            background: rgba(255, 0, 0, 0.3);
+        }
+
+        .config-section {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .config-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .add-todo-section {
+            margin-bottom: 30px;
+        }
+
+        .add-todo-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .add-todo-form input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        .add-todo-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .add-todo-form button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .add-todo-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .todos-container {
+            min-height: 200px;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: all 0.3s;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .todo-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .todo-item.completed {
+            opacity: 0.6;
+        }
+
+        .todo-checkbox {
+            width: 24px;
+            height: 24px;
+            margin-right: 15px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .todo-text {
+            flex: 1;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .todo-description {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        .todo-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-size: 18px;
+        }
+
+        .btn-edit:hover {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .btn-delete:hover {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .users-online {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .user-indicator {
+            width: 10px;
+            height: 10px;
+            background: #4caf50;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Collaborative Todo List</h1>
+            <div id="connectionStatus" class="connection-status status-disconnected">
+                Disconnected
+            </div>
+        </div>
+
+        <div class="config-section" id="configSection">
+            <h3>Configuration</h3>
+            <div class="input-group" style="display: none;">
+                <label for="supabaseUrl">Supabase URL</label>
+                <input type="text" id="supabaseUrl" placeholder="https://bnygtmybxdwolzlftlnd.supabase.co">
+                <div class="info-text">Use your API URL (not dashboard URL). Format: https://[project-ref].supabase.co</div>
+            </div>
+            <div class="input-group" style="display: none;">
+                <label for="supabaseKey">Supabase Anon Key</label>
+                <input type="text" id="supabaseKey" placeholder="your-anon-key">
+            </div>
+            <div class="input-group">
+                <label for="boardId">Board ID (use existing board or create new)</label>
+                <input type="text" id="boardId" placeholder="board-id">
+                <div class="info-text">If the board doesn't exist, it will be created automatically</div>
+            </div>
+            <div class="input-group">
+                <label for="columnId">Column ID (optional - will use first column or create one)</label>
+                <input type="text" id="columnId" placeholder="leave empty to auto-create">
+            </div>
+            <button class="btn btn-primary" id="connectButton" type="button">Connect</button>
+        </div>
+
+        <div class="content hidden" id="contentSection">
+            <div class="add-todo-section">
+                <form class="add-todo-form" onsubmit="addTodo(event)">
+                    <input 
+                        type="text" 
+                        id="todoInput" 
+                        placeholder="Add a new todo item..." 
+                        required
+                    >
+                    <button type="submit">Add Todo</button>
+                </form>
+            </div>
+
+            <div class="todos-container" id="todosContainer">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <p>No todos yet. Add one above!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="users-online hidden" id="usersOnline">
+            <div class="user-indicator"></div>
+            <span id="userCount">1 user online</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+        window.supabaseCreateClient = createClient;
+    </script>
+
+    <script>
+        const DEFAULT_SUPABASE_URL = 'https://bnygtmybxdwolzlftlnd.supabase.co';
+        const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJueWd0bXlieGR3b2x6bGZ0bG5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyOTQ5MjUsImV4cCI6MjA4Mjg3MDkyNX0.kCMqw1Y7KkRaMXS0NG3nE60jxjA8XBPaYmPY_TDU9QM';
+
+        let socket = null;
+        let supabase = null;
+        let currentBoardId = null;
+        let currentColumnId = null;
+        let tasks = new Map();
+        let userCount = 1;
+        let isInitializing = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlInput = document.getElementById('supabaseUrl');
+            const keyInput = document.getElementById('supabaseKey');
+            
+            if (urlInput && !urlInput.value) {
+                urlInput.value = DEFAULT_SUPABASE_URL;
+            }
+            
+            if (keyInput && !keyInput.value && DEFAULT_SUPABASE_ANON_KEY) {
+                keyInput.value = DEFAULT_SUPABASE_ANON_KEY;
+            }
+        });
+
+        // Initialize the application
+        async function initializeApp() {
+            // Prevent multiple simultaneous initializations
+            if (isInitializing) {
+                return;
+            }
+            
+            // Disable button to prevent double-clicks
+            const connectButton = document.getElementById('connectButton');
+            if (connectButton) {
+                connectButton.disabled = true;
+                connectButton.textContent = 'Connecting...';
+            }
+            
+            isInitializing = true;
+            
+            try {
+                let supabaseUrl = document.getElementById('supabaseUrl').value.trim() || DEFAULT_SUPABASE_URL;
+                let supabaseKey = document.getElementById('supabaseKey').value.trim() || DEFAULT_SUPABASE_ANON_KEY;
+                const boardId = document.getElementById('boardId').value.trim();
+                const columnId = document.getElementById('columnId').value.trim();
+
+                if (!supabaseUrl || !supabaseKey) {
+                    alert('Configuration error: Missing Supabase credentials');
+                    if (connectButton) {
+                        connectButton.disabled = false;
+                        connectButton.textContent = 'Connect';
+                    }
+                    return;
+                }
+
+                if (!boardId) {
+                    alert('Please provide a Board ID');
+                    if (connectButton) {
+                        connectButton.disabled = false;
+                        connectButton.textContent = 'Connect';
+                    }
+                    return;
+                }
+
+                if (supabaseUrl.includes('dashboard')) {
+                    const match = supabaseUrl.match(/project\/([a-z0-9]+)/);
+                    if (match) {
+                        supabaseUrl = `https://${match[1]}.supabase.co`;
+                        document.getElementById('supabaseUrl').value = supabaseUrl;
+                    } else {
+                        alert('Invalid Supabase URL format');
+                        if (connectButton) {
+                            connectButton.disabled = false;
+                            connectButton.textContent = 'Connect';
+                        }
+                        return;
+                    }
+                }
+
+                if (!supabaseUrl.match(/^https:\/\/[a-zA-Z0-9._-]+\.supabase\.co\/?$/)) {
+                    alert('Invalid Supabase URL format');
+                    if (connectButton) {
+                        connectButton.disabled = false;
+                        connectButton.textContent = 'Connect';
+                    }
+                    return;
+                }
+
+                currentBoardId = boardId;
+                currentColumnId = columnId;
+
+                if (typeof window.supabaseCreateClient === 'undefined') {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    if (typeof window.supabaseCreateClient === 'undefined') {
+                        throw new Error('Supabase library failed to load');
+                    }
+                }
+                
+                supabase = window.supabaseCreateClient(supabaseUrl, supabaseKey);
+
+                updateConnectionStatus(false, 'Connecting...');
+                try {
+                    const { data, error } = await supabase.from('User').select('id').limit(1);
+                    if (error && error.code !== '42P01' && error.message && !error.message.includes('relation') && !error.message.includes('does not exist')) {
+                        throw error;
+                    }
+                } catch (error) {
+                    console.error('Supabase connection error:', error);
+                    alert('Failed to connect to Supabase. Please verify your credentials.');
+                    updateConnectionStatus(false, 'Connection failed');
+                    if (connectButton) {
+                        connectButton.disabled = false;
+                        connectButton.textContent = 'Connect';
+                    }
+                    return;
+                }
+
+                if (socket && socket.connected) {
+                    socket.disconnect();
+                    socket = null;
+                }
+                
+                updateConnectionStatus(false, 'Connecting to socket server...');
+                socket = io('http://localhost:3000');
+                
+                // Set up event listeners only once
+                socket.on('connect', async () => {
+                    updateConnectionStatus(true, 'Connected');
+                    socket.emit('join-todolist', currentBoardId);
+                    
+                    await ensureBoardAndColumn();
+                    await loadTasks();
+                    
+                    // Initial user count will be updated via 'user-count-updated' event
+                });
+
+                socket.on('connect_error', (error) => {
+                    console.error('Socket connection error:', error);
+                    updateConnectionStatus(false, 'Socket server not running');
+                    alert('Failed to connect to socket server at http://localhost:3000\n\n' +
+                          'Please make sure the backend server is running:\n' +
+                          'Run: npm run dev');
+                    if (connectButton) {
+                        connectButton.disabled = false;
+                        connectButton.textContent = 'Connect';
+                    }
+                });
+
+                socket.on('disconnect', () => {
+                    updateConnectionStatus(false, 'Disconnected');
+                });
+
+                // Listen for real-time task updates from other users
+                socket.on('todo-added', (task) => {
+                    addTaskToUI(task, false);
+                });
+
+                socket.on('todo-updated', ({ todoId, updates }) => {
+                    updateTaskInUI(todoId, updates, false);
+                });
+
+                socket.on('todo-deleted', ({ todoId }) => {
+                    deleteTaskFromUI(todoId, false);
+                });
+
+                socket.on('todo-toggled', ({ todoId, completed }) => {
+                    // Store completed state in description as JSON for now
+                    // (since Task model doesn't have completed field)
+                    updateTaskInUI(todoId, { 
+                        description: JSON.stringify({ completed: completed }) 
+                    }, false);
+                });
+
+                // Listen for user count updates
+                socket.on('user-count-updated', ({ count }) => {
+                    console.log('User count updated:', count);
+                    userCount = count;
+                    updateUserCount();
+                });
+
+                document.getElementById('configSection').classList.add('hidden');
+                document.getElementById('contentSection').classList.remove('hidden');
+                document.getElementById('usersOnline').classList.remove('hidden');
+                
+                isInitializing = false;
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                alert('Connection failed: ' + (error.message || error));
+                updateConnectionStatus(false, 'Error');
+                isInitializing = false;
+                if (connectButton) {
+                    connectButton.disabled = false;
+                    connectButton.textContent = 'Connect';
+                }
+            }
+        }
+
+        // Make function globally accessible immediately
+        window.initializeApp = initializeApp;
+        
+        function setupConnectButton() {
+            const connectButton = document.getElementById('connectButton');
+            if (connectButton) {
+                connectButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    initializeApp();
+                });
+            } else {
+            }
+        }
+        
+        // Try to set up immediately, and also on DOM ready as backup
+        setupConnectButton();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupConnectButton);
+        }
+
+        function updateUserCount() {
+            const userCountEl = document.getElementById('userCount');
+            if (userCountEl) {
+                userCountEl.textContent = `${userCount} user${userCount !== 1 ? 's' : ''} online`;
+            }
+        }
+
+        async function ensureBoardAndColumn() {
+            try {
+                const defaultOwnerId = '00000000-0000-0000-0000-000000000000';
+                const defaultUserEmail = 'default@system.local';
+                let actualOwnerId = defaultOwnerId;
+                
+                let { data: user, error: userError } = await supabase
+                    .from('User')
+                    .select('id')
+                    .eq('id', defaultOwnerId)
+                    .single();
+
+                if (userError || !user) {
+                    const { error: createUserError } = await supabase
+                        .from('User')
+                        .insert([{
+                            id: defaultOwnerId,
+                            email: defaultUserEmail,
+                            name: 'System User'
+                        }]);
+
+                    if (createUserError) {
+                        const { data: existingUser } = await supabase
+                            .from('User')
+                            .select('id')
+                            .eq('email', defaultUserEmail)
+                            .single();
+                        
+                        if (existingUser) {
+                            actualOwnerId = existingUser.id;
+                        } else {
+                            throw new Error('Failed to set up user: ' + createUserError.message);
+                        }
+                    }
+                }
+
+                let { data: board, error: boardError } = await supabase
+                    .from('Board')
+                    .select('id')
+                    .eq('id', currentBoardId)
+                    .single();
+
+                if (boardError || !board) {
+                    const { data: newBoard, error: createBoardError } = await supabase
+                        .from('Board')
+                        .insert([{
+                            id: currentBoardId,
+                            title: 'Todo List Board',
+                            ownerId: actualOwnerId,
+                            createdAt: new Date().toISOString()
+                        }])
+                        .select()
+                        .single();
+
+                    if (createBoardError) {
+                        throw new Error('Failed to create board: ' + createBoardError.message);
+                    }
+                }
+
+                if (currentColumnId) {
+                    const { data: column, error: columnError } = await supabase
+                        .from('Column')
+                        .select('id')
+                        .eq('id', currentColumnId)
+                        .single();
+
+                    if (columnError || !column) {
+                        const { error: createColumnError } = await supabase
+                            .from('Column')
+                            .insert([{
+                                id: currentColumnId,
+                                title: 'Todos',
+                                order: 0,
+                                boardId: currentBoardId
+                            }]);
+
+                        if (createColumnError) {
+                            throw new Error('Failed to create column: ' + createColumnError.message);
+                        }
+                    }
+                } else {
+                    const { data: columns, error: columnsError } = await supabase
+                        .from('Column')
+                        .select('id')
+                        .eq('boardId', currentBoardId)
+                        .order('order', { ascending: true })
+                        .limit(1);
+
+                    if (columns && columns.length > 0) {
+                        currentColumnId = columns[0].id;
+                    } else {
+                        const columnId = crypto.randomUUID();
+                        const { data: newColumn, error: createColumnError } = await supabase
+                            .from('Column')
+                            .insert([{
+                                id: columnId,
+                                title: 'Todos',
+                                order: 0,
+                                boardId: currentBoardId
+                            }])
+                            .select()
+                            .single();
+
+                        if (createColumnError) {
+                            alert('Error setting up column: ' + createColumnError.message);
+                            throw createColumnError;
+                        }
+                        currentColumnId = newColumn.id;
+                    }
+                }
+            } catch (error) {
+                console.error('Error ensuring board/column:', error);
+                if (error.message) {
+                    alert('Setup error: ' + error.message);
+                }
+                throw error;
+            }
+        }
+
+        function updateConnectionStatus(connected, message = null) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.textContent = message || 'Connected';
+                statusEl.className = 'connection-status status-connected';
+            } else {
+                statusEl.textContent = message || 'Disconnected';
+                statusEl.className = 'connection-status status-disconnected';
+            }
+        }
+
+        async function loadTasks() {
+            if (!currentColumnId) {
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('Task')
+                    .select('*')
+                    .eq('columnId', currentColumnId)
+                    .order('order', { ascending: true });
+
+                if (error) {
+                    console.error('Error loading tasks:', error);
+                    if (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist')) {
+                        alert('Task table does not exist. Please run Prisma migrations first:\n\n' +
+                              'npx prisma migrate dev\n\n' +
+                              'Or ensure your Supabase database matches your Prisma schema.');
+                    }
+                    return;
+                }
+
+                const container = document.getElementById('todosContainer');
+                container.innerHTML = '';
+
+                if (data && data.length > 0) {
+                    data.forEach(task => {
+                        tasks.set(task.id, task);
+                        addTaskToUI(task, false);
+                    });
+                } else {
+                    showEmptyState();
+                }
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+
+        async function addTodo(event) {
+            event.preventDefault();
+            const input = document.getElementById('todoInput');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            if (!currentColumnId) {
+                alert('Column not set up. Please check your configuration.');
+                return;
+            }
+
+            try {
+                const { data: existingTasks } = await supabase
+                    .from('Task')
+                    .select('order')
+                    .eq('columnId', currentColumnId)
+                    .order('order', { ascending: false })
+                    .limit(1);
+
+                const nextOrder = existingTasks && existingTasks.length > 0 
+                    ? existingTasks[0].order + 1 
+                    : 0;
+
+                const taskId = crypto.randomUUID();
+                const now = new Date().toISOString();
+
+                const { data, error } = await supabase
+                    .from('Task')
+                    .insert([
+                        {
+                            id: taskId,
+                            title: text,
+                            description: JSON.stringify({ completed: false }),
+                            order: nextOrder,
+                            columnId: currentColumnId,
+                            updatedAt: now
+                        }
+                    ])
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('Error adding task:', error);
+                    alert('Error adding todo: ' + error.message);
+                    return;
+                }
+
+                tasks.set(data.id, data);
+                addTaskToUI(data, false);
+
+                socket.emit('todo-add', {
+                    listId: currentBoardId,
+                    todo: data
+                });
+
+                input.value = '';
+            } catch (error) {
+                console.error('Error adding todo:', error);
+            }
+        }
+
+        // Toggle task completion (stored in description as JSON)
+        async function toggleTodo(taskId) {
+            const task = tasks.get(taskId);
+            if (!task) return;
+
+            let taskData = { completed: false };
+            try {
+                if (task.description) {
+                    taskData = JSON.parse(task.description);
+                }
+            } catch (e) {
+                // If description is not JSON, treat as not completed
+                taskData = { completed: false };
+            }
+
+            const newCompleted = !taskData.completed;
+
+            try {
+                // Update in Supabase
+                const { error } = await supabase
+                    .from('Task')
+                    .update({ 
+                        description: JSON.stringify({ completed: newCompleted }),
+                        updatedAt: new Date().toISOString()
+                    })
+                    .eq('id', taskId);
+
+                if (error) {
+                    console.error('Error updating task:', error);
+                    return;
+                }
+
+                // Update local state
+                task.description = JSON.stringify({ completed: newCompleted });
+                tasks.set(taskId, task);
+
+                // Update UI
+                updateTaskInUI(taskId, { description: task.description }, false);
+
+                socket.emit('todo-toggle', {
+                    listId: currentBoardId,
+                    todoId: taskId,
+                    completed: newCompleted
+                });
+            } catch (error) {
+                console.error('Error toggling todo:', error);
+            }
+        }
+
+        // Delete a task
+        async function deleteTodo(taskId) {
+            if (!confirm('Are you sure you want to delete this todo?')) return;
+
+            try {
+                // Delete from Supabase
+                const { error } = await supabase
+                    .from('Task')
+                    .delete()
+                    .eq('id', taskId);
+
+                if (error) {
+                    console.error('Error deleting task:', error);
+                    return;
+                }
+
+                // Remove from local state
+                tasks.delete(taskId);
+
+                // Remove from UI
+                deleteTaskFromUI(taskId, false);
+
+                socket.emit('todo-delete', {
+                    listId: currentBoardId,
+                    todoId: taskId
+                });
+            } catch (error) {
+                console.error('Error deleting todo:', error);
+            }
+        }
+
+        // UI Helper Functions
+        function addTaskToUI(task, saveToDB = true) {
+            const container = document.getElementById('todosContainer');
+            
+            // Remove empty state if present
+            if (container.querySelector('.empty-state')) {
+                container.innerHTML = '';
+            }
+
+            let completed = false;
+            try {
+                if (task.description) {
+                    const desc = JSON.parse(task.description);
+                    completed = desc.completed || false;
+                }
+            } catch (e) {
+                // Not JSON, treat as not completed
+            }
+
+            const taskEl = document.createElement('div');
+            taskEl.className = `todo-item ${completed ? 'completed' : ''}`;
+            taskEl.id = `todo-${task.id}`;
+            taskEl.innerHTML = `
+                <input 
+                    type="checkbox" 
+                    class="todo-checkbox" 
+                    ${completed ? 'checked' : ''}
+                    onchange="toggleTodo('${task.id}')"
+                >
+                <div style="flex: 1;">
+                    <span class="todo-text">${escapeHtml(task.title)}</span>
+                    ${task.description && !task.description.startsWith('{') ? 
+                        `<div class="todo-description">${escapeHtml(task.description)}</div>` : ''}
+                </div>
+                <div class="todo-actions">
+                    <button class="btn-icon btn-delete" onclick="deleteTodo('${task.id}')" title="Delete">
+                        🗑️
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(taskEl);
+        }
+
+        function updateTaskInUI(taskId, updates, saveToDB = true) {
+            const taskEl = document.getElementById(`todo-${taskId}`);
+            if (!taskEl) return;
+
+            const task = tasks.get(taskId);
+            if (!task) return;
+
+            // Update local state
+            Object.assign(task, updates);
+            tasks.set(taskId, task);
+
+            // Update UI
+            if (updates.description) {
+                try {
+                    const desc = JSON.parse(updates.description);
+                    if (desc.completed !== undefined) {
+                        const checkbox = taskEl.querySelector('.todo-checkbox');
+                        checkbox.checked = desc.completed;
+                        
+                        if (desc.completed) {
+                            taskEl.classList.add('completed');
+                        } else {
+                            taskEl.classList.remove('completed');
+                        }
+                    }
+                } catch (e) {
+                    // Not JSON, ignore
+                }
+            }
+
+            if (updates.title !== undefined) {
+                const textEl = taskEl.querySelector('.todo-text');
+                textEl.textContent = updates.title;
+            }
+        }
+
+        function deleteTaskFromUI(taskId, saveToDB = true) {
+            const taskEl = document.getElementById(`todo-${taskId}`);
+            if (taskEl) {
+                taskEl.remove();
+            }
+
+            // Show empty state if no tasks left
+            const container = document.getElementById('todosContainer');
+            if (container.children.length === 0) {
+                showEmptyState();
+            }
+        }
+
+        function showEmptyState() {
+            const container = document.getElementById('todosContainer');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <p>No todos yet. Add one above!</p>
+                </div>
+            `;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
