@@ -1,4 +1,4 @@
-# LiveWhiteboard - Collaborative Todo List
+# LiveTodo - Real-Time Collaborative Todo List
 
 A real-time collaborative todo list application that enables multiple users to work together on shared task boards with instant synchronization across all connected clients.
 
@@ -10,7 +10,7 @@ A real-time collaborative todo list application that enables multiple users to w
 
 ### Real-Time Collaboration
 - Instant synchronization of todos across all connected users
-- Live user count display showing how many users are viewing the same board
+- Live user presence showing who's currently viewing the same board
 - No page refresh required - all updates happen in real-time via WebSocket connections
 
 ### Todo Management
@@ -22,30 +22,30 @@ A real-time collaborative todo list application that enables multiple users to w
 ### Persistent Storage
 - All todos are saved to Supabase database
 - Data persists across browser sessions
-- Automatic board and column creation
+- Automatic board and column creation when joining new boards
 
 ### User Experience
-- Clean, modern interface
+- Clean, modern interface with gradient styling
 - Responsive design
 - Connection status indicators
-- Real-time user presence tracking
+- Real-time user presence tracking with names
 
 ## Tech Stack
 
 ### Backend
 - **Node.js** - Runtime environment
-- **Express** - Web server framework
+- **Express 5** - Web server framework
 - **Socket.io** - WebSocket library for real-time bidirectional communication
 - **TypeScript** - Type-safe server-side code
 
 ### Frontend
 - **Vanilla JavaScript** - No framework dependencies
-- **HTML5/CSS3** - Modern web standards
+- **HTML5/CSS3** - Modern web standards with gradient styling
 - **Socket.io Client** - Real-time event handling
+- **Supabase JS Client** - Direct database access from frontend
 
 ### Database
-- **Supabase (PostgreSQL)** - Cloud-hosted PostgreSQL database
-- **Prisma** - Database schema management and migrations
+- **Supabase (PostgreSQL)** - Cloud-hosted PostgreSQL database with real-time capabilities
 
 ### Architecture
 - **Event-Driven Architecture** - Socket.io events for real-time updates
@@ -56,49 +56,16 @@ A real-time collaborative todo list application that enables multiple users to w
 
 ### Prerequisites
 - Node.js (v18 or higher)
-- npm or yarn
+- npm
 - Supabase account and project
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/bhavyam2/LiveTodo.git
-cd LiveWhiteboard
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Configure environment variables:
-Create a `.env` file in the root directory:
-```
-DATABASE_URL=your_supabase_connection_string
-PORT=3000
-CORS_ORIGIN=*
-```
-
-4. Set up Supabase:
-- The Supabase URL and anon key are configured in `todolist.html`
-- Update `DEFAULT_SUPABASE_URL` and `DEFAULT_SUPABASE_ANON_KEY` constants if needed
-- Ensure your Supabase database matches the Prisma schema
-
-5. Run the development server:
-```bash
-npm run dev
-```
-
-6. Open your browser:
-Navigate to `http://localhost:3000`
 
 ## Usage
 
-1. Enter a Board ID (or create a new one by entering a unique ID)
-2. Optionally enter a Column ID (leave empty to auto-create)
+1. Enter your name
+2. Enter a Board ID (use an existing board or create a new one by entering a unique ID)
 3. Click Connect to start collaborating
 4. Add todos and see them appear in real-time for all connected users
+5. Check off completed items or delete todos as needed
 
 ## Project Structure
 
@@ -106,40 +73,44 @@ Navigate to `http://localhost:3000`
 LiveWhiteboard/
 ├── src/
 │   └── index.ts          # Express server and Socket.io setup
-├── prisma/
-│   └── schema.prisma     # Database schema definitions
-├── todolist.html         # Frontend application
+├── todolist.html         # Frontend application (single-page app)
 ├── package.json          # Dependencies and scripts
 ├── tsconfig.json         # TypeScript configuration
-└── README.md            # This file
+└── README.md             # This file
 ```
 
 ## API Endpoints
 
 - `GET /` - Serves the todo list application
-- `GET /health` - Health check endpoint
+- `GET /health` - Health check endpoint (returns `{ status: 'active' }`)
 
 ## WebSocket Events
 
 ### Client to Server
-- `join-todolist` - Join a todo list room
-- `todo-add` - Broadcast new todo
-- `todo-update` - Broadcast todo update
-- `todo-delete` - Broadcast todo deletion
-- `todo-toggle` - Broadcast todo completion toggle
+| Event | Description | Payload |
+|-------|-------------|---------|
+| `join-todolist` | Join a todo list room | `{ listId: string, userName?: string }` |
+| `todo-add` | Broadcast new todo | `{ listId: string, todo: Task }` |
+| `todo-update` | Broadcast todo update | `{ listId: string, todoId: string, updates: object }` |
+| `todo-delete` | Broadcast todo deletion | `{ listId: string, todoId: string }` |
+| `todo-toggle` | Broadcast todo completion toggle | `{ listId: string, todoId: string, completed: boolean }` |
 
 ### Server to Client
-- `todo-added` - Receive new todo from another user
-- `todo-updated` - Receive todo update from another user
-- `todo-deleted` - Receive todo deletion from another user
-- `todo-toggled` - Receive todo completion toggle from another user
-- `user-count-updated` - Receive updated user count for the room
+| Event | Description | Payload |
+|-------|-------------|---------|
+| `todo-added` | Receive new todo from another user | `Task` |
+| `todo-updated` | Receive todo update from another user | `{ todoId: string, updates: object }` |
+| `todo-deleted` | Receive todo deletion from another user | `{ todoId: string }` |
+| `todo-toggled` | Receive todo completion toggle | `{ todoId: string, completed: boolean }` |
+| `user-count-updated` | Receive updated user count and names | `{ count: number, users: string[] }` |
 
-## Database Schema
+## Environment Variables
 
-The application uses the following Prisma schema:
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `3000` |
+| `CORS_ORIGIN` | CORS origin setting | `*` |
 
-- **User** - User accounts with email and name
-- **Board** - Todo boards with title and owner
-- **Column** - Columns within boards for organization
-- **Task** - Individual todo items with title, description, order, and completion status
+## License
+
+ISC

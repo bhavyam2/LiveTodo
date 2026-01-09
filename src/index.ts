@@ -93,43 +93,6 @@ io.on('connection', (socket) => {
     socket.to(data.listId).emit('todo-toggled', { todoId: data.todoId, completed: data.completed });
   });
 
-  socket.on('join-board', (data: { boardId: string, userName?: string } | string) => {
-    const boardId = typeof data === 'string' ? data : data?.boardId;
-    const userName = typeof data === 'object' ? data?.userName : undefined;
-    
-    if (!boardId || typeof boardId !== 'string') return;
-
-    const currentRooms = Array.from(socket.rooms);
-    if (!currentRooms.includes(boardId)) {
-      socket.join(boardId);
-    }
-    
-    // Track this room for this socket
-    if (!socketRooms.has(socket.id)) {
-      socketRooms.set(socket.id, new Set());
-    }
-    socketRooms.get(socket.id)!.add(boardId);
-    
-    // Track user in this room
-    if (userName) {
-      if (!activeUsers.has(boardId)) {
-        activeUsers.set(boardId, new Map());
-      }
-      activeUsers.get(boardId)!.set(socket.id, userName);
-    }
-    
-    const room = io.sockets.adapter.rooms.get(boardId);
-    const userCount = room ? room.size : 0;
-    const users = activeUsers.get(boardId) ? Array.from(activeUsers.get(boardId)!.values()) : [];
-    
-    io.to(boardId).emit('user-count-updated', { count: userCount, users });
-  });
-
-  socket.on('draw', (data: { boardId: string, x: number, y: number, color: string }) => {
-    if (!data?.boardId || typeof data.x !== 'number' || typeof data.y !== 'number' || !data.color) return;
-    socket.to(data.boardId).emit('draw-update', data);
-  });
-
   socket.on('disconnect', () => {
     // Get rooms this socket was in from our tracking
     const roomsToUpdate = socketRooms.get(socket.id) || new Set();
