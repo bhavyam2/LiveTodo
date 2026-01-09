@@ -310,23 +310,14 @@
 
         <div class="config-section" id="configSection">
             <h3>Configuration</h3>
-            <div class="input-group" style="display: none;">
-                <label for="supabaseUrl">Supabase URL</label>
-                <input type="text" id="supabaseUrl" placeholder="https://bnygtmybxdwolzlftlnd.supabase.co">
-                <div class="info-text">Use your API URL (not dashboard URL). Format: https://[project-ref].supabase.co</div>
-            </div>
-            <div class="input-group" style="display: none;">
-                <label for="supabaseKey">Supabase Anon Key</label>
-                <input type="text" id="supabaseKey" placeholder="your-anon-key">
+            <div class="input-group">
+                <label for="userName">Your Name</label>
+                <input type="text" id="userName" placeholder="Enter your name" required>
             </div>
             <div class="input-group">
                 <label for="boardId">Board ID (use existing board or create new)</label>
-                <input type="text" id="boardId" placeholder="board-id">
+                <input type="text" id="boardId" placeholder="board-id" required>
                 <div class="info-text">If the board doesn't exist, it will be created automatically</div>
-            </div>
-            <div class="input-group">
-                <label for="columnId">Column ID (optional - will use first column or create one)</label>
-                <input type="text" id="columnId" placeholder="leave empty to auto-create">
             </div>
             <button class="btn btn-primary" id="connectButton" type="button">Connect</button>
         </div>
@@ -360,41 +351,38 @@
         </div>
     </div>
 
+    <!-- Socket.io Client -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- Supabase Client - Using ES Module -->
     <script type="module">
+        // Import Supabase and make it globally available
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
         window.supabaseCreateClient = createClient;
+        console.log('Supabase module loaded');
     </script>
 
     <script>
-        const DEFAULT_SUPABASE_URL = 'https://bnygtmybxdwolzlftlnd.supabase.co';
-        const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJueWd0bXlieGR3b2x6bGZ0bG5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyOTQ5MjUsImV4cCI6MjA4Mjg3MDkyNX0.kCMqw1Y7KkRaMXS0NG3nE60jxjA8XBPaYmPY_TDU9QM';
+        // Hardcoded Supabase configuration
+        const SUPABASE_URL = 'https://bnygtmybxdwolzlftlnd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJueWd0bXlieGR3b2x6bGZ0bG5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyOTQ5MjUsImV4cCI6MjA4Mjg3MDkyNX0.kCMqw1Y7KkRaMXS0NG3nE60jxjA8XBPaYmPY_TDU9QM';
 
         let socket = null;
         let supabase = null;
         let currentBoardId = null;
         let currentColumnId = null;
+        let currentUserName = null;
         let tasks = new Map();
         let userCount = 1;
+        let activeUsers = [];
         let isInitializing = false;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const urlInput = document.getElementById('supabaseUrl');
-            const keyInput = document.getElementById('supabaseKey');
-            
-            if (urlInput && !urlInput.value) {
-                urlInput.value = DEFAULT_SUPABASE_URL;
-            }
-            
-            if (keyInput && !keyInput.value && DEFAULT_SUPABASE_ANON_KEY) {
-                keyInput.value = DEFAULT_SUPABASE_ANON_KEY;
-            }
-        });
 
         // Initialize the application
         async function initializeApp() {
+            console.log('initializeApp called');
+            
             // Prevent multiple simultaneous initializations
             if (isInitializing) {
+                console.log('Already initializing, ignoring duplicate call');
                 return;
             }
             
@@ -408,13 +396,11 @@
             isInitializing = true;
             
             try {
-                let supabaseUrl = document.getElementById('supabaseUrl').value.trim() || DEFAULT_SUPABASE_URL;
-                let supabaseKey = document.getElementById('supabaseKey').value.trim() || DEFAULT_SUPABASE_ANON_KEY;
+                const userName = document.getElementById('userName').value.trim();
                 const boardId = document.getElementById('boardId').value.trim();
-                const columnId = document.getElementById('columnId').value.trim();
 
-                if (!supabaseUrl || !supabaseKey) {
-                    alert('Configuration error: Missing Supabase credentials');
+                if (!userName) {
+                    alert('Please enter your name');
                     if (connectButton) {
                         connectButton.disabled = false;
                         connectButton.textContent = 'Connect';
@@ -431,51 +417,37 @@
                     return;
                 }
 
-                if (supabaseUrl.includes('dashboard')) {
-                    const match = supabaseUrl.match(/project\/([a-z0-9]+)/);
-                    if (match) {
-                        supabaseUrl = `https://${match[1]}.supabase.co`;
-                        document.getElementById('supabaseUrl').value = supabaseUrl;
-                    } else {
-                        alert('Invalid Supabase URL format');
-                        if (connectButton) {
-                            connectButton.disabled = false;
-                            connectButton.textContent = 'Connect';
-                        }
-                        return;
-                    }
-                }
-
-                if (!supabaseUrl.match(/^https:\/\/[a-zA-Z0-9._-]+\.supabase\.co\/?$/)) {
-                    alert('Invalid Supabase URL format');
-                    if (connectButton) {
-                        connectButton.disabled = false;
-                        connectButton.textContent = 'Connect';
-                    }
-                    return;
-                }
-
                 currentBoardId = boardId;
-                currentColumnId = columnId;
+                currentUserName = userName;
 
+                // Initialize Supabase using the imported createClient function
                 if (typeof window.supabaseCreateClient === 'undefined') {
+                    // Wait a bit for the module to load
                     await new Promise(resolve => setTimeout(resolve, 500));
                     if (typeof window.supabaseCreateClient === 'undefined') {
-                        throw new Error('Supabase library failed to load');
+                        throw new Error('Supabase library not loaded. Please refresh the page and check your internet connection.');
                     }
                 }
                 
-                supabase = window.supabaseCreateClient(supabaseUrl, supabaseKey);
+                supabase = window.supabaseCreateClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase client initialized successfully');
 
-                updateConnectionStatus(false, 'Connecting...');
+                // Test Supabase connection first
+                updateConnectionStatus(false, 'Testing Supabase connection...');
                 try {
+                    // Try a simple query to test connection
                     const { data, error } = await supabase.from('User').select('id').limit(1);
                     if (error && error.code !== '42P01' && error.message && !error.message.includes('relation') && !error.message.includes('does not exist')) {
                         throw error;
                     }
+                    // Connection works (even if table doesn't exist, that's okay)
                 } catch (error) {
                     console.error('Supabase connection error:', error);
-                    alert('Failed to connect to Supabase. Please verify your credentials.');
+                    alert('Failed to connect to Supabase:\n' + (error.message || error) + '\n\n' +
+                          'Please check:\n' +
+                          '1. Your Supabase URL is correct (https://[project-ref].supabase.co)\n' +
+                          '2. Your anon key is correct\n' +
+                          '3. Your Supabase project is active');
                     updateConnectionStatus(false, 'Connection failed');
                     if (connectButton) {
                         connectButton.disabled = false;
@@ -484,7 +456,10 @@
                     return;
                 }
 
+                // Initialize Socket.io connection
+                // Disconnect existing socket if any
                 if (socket && socket.connected) {
+                    console.log('Disconnecting existing socket before creating new one');
                     socket.disconnect();
                     socket = null;
                 }
@@ -494,9 +469,14 @@
                 
                 // Set up event listeners only once
                 socket.on('connect', async () => {
+                    console.log('Socket connected:', socket.id);
                     updateConnectionStatus(true, 'Connected');
-                    socket.emit('join-todolist', currentBoardId);
+                    socket.emit('join-todolist', {
+                        listId: currentBoardId,
+                        userName: currentUserName
+                    });
                     
+                    // Ensure board and column exist, then load tasks
                     await ensureBoardAndColumn();
                     await loadTasks();
                     
@@ -516,7 +496,12 @@
                 });
 
                 socket.on('disconnect', () => {
+                    console.log('Socket disconnected');
                     updateConnectionStatus(false, 'Disconnected');
+                    // Clear active users when disconnected
+                    activeUsers = [];
+                    userCount = 0;
+                    updateUserCount();
                 });
 
                 // Listen for real-time task updates from other users
@@ -541,12 +526,14 @@
                 });
 
                 // Listen for user count updates
-                socket.on('user-count-updated', ({ count }) => {
-                    console.log('User count updated:', count);
+                socket.on('user-count-updated', ({ count, users = [] }) => {
+                    console.log('User count updated:', count, users);
                     userCount = count;
+                    activeUsers = users;
                     updateUserCount();
                 });
 
+                // Hide config, show content
                 document.getElementById('configSection').classList.add('hidden');
                 document.getElementById('contentSection').classList.remove('hidden');
                 document.getElementById('usersOnline').classList.remove('hidden');
@@ -554,8 +541,8 @@
                 isInitializing = false;
                 
             } catch (error) {
-                console.error('Connection error:', error);
-                alert('Connection failed: ' + (error.message || error));
+                console.error('Error in initializeApp:', error);
+                alert('An error occurred: ' + (error.message || error));
                 updateConnectionStatus(false, 'Error');
                 isInitializing = false;
                 if (connectButton) {
@@ -568,15 +555,19 @@
         // Make function globally accessible immediately
         window.initializeApp = initializeApp;
         
+        // Add event listener - works whether DOM is loaded or not
         function setupConnectButton() {
             const connectButton = document.getElementById('connectButton');
             if (connectButton) {
                 connectButton.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    console.log('Button clicked, calling initializeApp');
                     initializeApp();
                 });
+                console.log('Connect button event listener attached');
             } else {
+                console.warn('Connect button not found, will retry on DOMContentLoaded');
             }
         }
         
@@ -589,16 +580,31 @@
         function updateUserCount() {
             const userCountEl = document.getElementById('userCount');
             if (userCountEl) {
-                userCountEl.textContent = `${userCount} user${userCount !== 1 ? 's' : ''} online`;
+                if (activeUsers.length > 0) {
+                    // Show names of active users
+                    if (activeUsers.length === 1) {
+                        userCountEl.textContent = `${activeUsers[0]} is online`;
+                    } else if (activeUsers.length === 2) {
+                        userCountEl.textContent = `${activeUsers[0]} and ${activeUsers[1]} are online`;
+                    } else {
+                        const lastUser = activeUsers[activeUsers.length - 1];
+                        const otherUsers = activeUsers.slice(0, -1).join(', ');
+                        userCountEl.textContent = `${otherUsers}, and ${lastUser} are online`;
+                    }
+                } else {
+                    // Fallback to count if no names available
+                    userCountEl.textContent = `${userCount} user${userCount !== 1 ? 's' : ''} online`;
+                }
             }
         }
 
+        // Ensure board and column exist
         async function ensureBoardAndColumn() {
             try {
                 const defaultOwnerId = '00000000-0000-0000-0000-000000000000';
                 const defaultUserEmail = 'default@system.local';
-                let actualOwnerId = defaultOwnerId;
-                
+
+                // First, ensure the default user exists
                 let { data: user, error: userError } = await supabase
                     .from('User')
                     .select('id')
@@ -606,6 +612,7 @@
                     .single();
 
                 if (userError || !user) {
+                    // Try to create the default user
                     const { error: createUserError } = await supabase
                         .from('User')
                         .insert([{
@@ -615,20 +622,21 @@
                         }]);
 
                     if (createUserError) {
+                        // If user already exists with different ID, try to find it
                         const { data: existingUser } = await supabase
                             .from('User')
                             .select('id')
                             .eq('email', defaultUserEmail)
                             .single();
                         
-                        if (existingUser) {
-                            actualOwnerId = existingUser.id;
-                        } else {
-                            throw new Error('Failed to set up user: ' + createUserError.message);
+                        if (!existingUser) {
+                            console.error('Error creating user:', createUserError);
+                            throw new Error('Failed to set up default user: ' + createUserError.message);
                         }
                     }
                 }
 
+                // Check if board exists
                 let { data: board, error: boardError } = await supabase
                     .from('Board')
                     .select('id')
@@ -636,78 +644,74 @@
                     .single();
 
                 if (boardError || !board) {
+                    // Create board
                     const { data: newBoard, error: createBoardError } = await supabase
                         .from('Board')
                         .insert([{
                             id: currentBoardId,
                             title: 'Todo List Board',
-                            ownerId: actualOwnerId,
+                            ownerId: defaultOwnerId,
                             createdAt: new Date().toISOString()
                         }])
                         .select()
                         .single();
 
                     if (createBoardError) {
-                        throw new Error('Failed to create board: ' + createBoardError.message);
+                        console.error('Error creating board:', createBoardError);
+                        // Check if board was created by another user/process
+                        const { data: existingBoard } = await supabase
+                            .from('Board')
+                            .select('id')
+                            .eq('id', currentBoardId)
+                            .single();
+                        
+                        if (!existingBoard) {
+                            throw new Error('Failed to create board: ' + createBoardError.message);
+                        }
                     }
                 }
 
-                if (currentColumnId) {
-                    const { data: column, error: columnError } = await supabase
+                // Wait a moment to ensure board is fully created
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Always get the first column or create one (there's only one column per board)
+                const { data: columns, error: columnsError } = await supabase
+                    .from('Column')
+                    .select('id')
+                    .eq('boardId', currentBoardId)
+                    .order('order', { ascending: true })
+                    .limit(1);
+
+                if (columnsError && !columnsError.message.includes('does not exist') && !columnsError.message.includes('relation')) {
+                    console.error('Error fetching columns:', columnsError);
+                }
+
+                if (columns && columns.length > 0) {
+                    currentColumnId = columns[0].id;
+                } else {
+                    // Create a default column with a generated UUID
+                    const columnId = crypto.randomUUID();
+                    const { data: newColumn, error: createColumnError } = await supabase
                         .from('Column')
-                        .select('id')
-                        .eq('id', currentColumnId)
+                        .insert([{
+                            id: columnId,
+                            title: 'Todos',
+                            order: 0,
+                            boardId: currentBoardId
+                        }])
+                        .select()
                         .single();
 
-                    if (columnError || !column) {
-                        const { error: createColumnError } = await supabase
-                            .from('Column')
-                            .insert([{
-                                id: currentColumnId,
-                                title: 'Todos',
-                                order: 0,
-                                boardId: currentBoardId
-                            }]);
-
-                        if (createColumnError) {
-                            throw new Error('Failed to create column: ' + createColumnError.message);
-                        }
+                    if (createColumnError) {
+                        console.error('Error creating column:', createColumnError);
+                        alert('Error setting up column: ' + createColumnError.message + '\n\nPlease check:\n1. The board exists\n2. Database permissions are correct');
+                        throw new Error('Failed to create column: ' + createColumnError.message);
                     }
-                } else {
-                    const { data: columns, error: columnsError } = await supabase
-                        .from('Column')
-                        .select('id')
-                        .eq('boardId', currentBoardId)
-                        .order('order', { ascending: true })
-                        .limit(1);
-
-                    if (columns && columns.length > 0) {
-                        currentColumnId = columns[0].id;
-                    } else {
-                        const columnId = crypto.randomUUID();
-                        const { data: newColumn, error: createColumnError } = await supabase
-                            .from('Column')
-                            .insert([{
-                                id: columnId,
-                                title: 'Todos',
-                                order: 0,
-                                boardId: currentBoardId
-                            }])
-                            .select()
-                            .single();
-
-                        if (createColumnError) {
-                            alert('Error setting up column: ' + createColumnError.message);
-                            throw createColumnError;
-                        }
-                        currentColumnId = newColumn.id;
-                    }
+                    currentColumnId = newColumn.id;
                 }
             } catch (error) {
                 console.error('Error ensuring board/column:', error);
-                if (error.message) {
-                    alert('Setup error: ' + error.message);
-                }
+                alert('Error setting up board/column: ' + (error.message || error));
                 throw error;
             }
         }
@@ -723,8 +727,10 @@
             }
         }
 
+        // Load tasks from Supabase
         async function loadTasks() {
             if (!currentColumnId) {
+                console.error('No column ID available');
                 return;
             }
 
@@ -761,6 +767,7 @@
             }
         }
 
+        // Add a new task
         async function addTodo(event) {
             event.preventDefault();
             const input = document.getElementById('todoInput');
@@ -774,6 +781,7 @@
             }
 
             try {
+                // Get max order for this column
                 const { data: existingTasks } = await supabase
                     .from('Task')
                     .select('order')
@@ -785,9 +793,11 @@
                     ? existingTasks[0].order + 1 
                     : 0;
 
+                // Generate UUID for the task
                 const taskId = crypto.randomUUID();
                 const now = new Date().toISOString();
 
+                // Save to Supabase
                 const { data, error } = await supabase
                     .from('Task')
                     .insert([
@@ -809,9 +819,13 @@
                     return;
                 }
 
+                // Add to local state
                 tasks.set(data.id, data);
+                
+                // Add to UI
                 addTaskToUI(data, false);
 
+                // Broadcast to other users via socket
                 socket.emit('todo-add', {
                     listId: currentBoardId,
                     todo: data
@@ -862,6 +876,7 @@
                 // Update UI
                 updateTaskInUI(taskId, { description: task.description }, false);
 
+                // Broadcast to other users
                 socket.emit('todo-toggle', {
                     listId: currentBoardId,
                     todoId: taskId,
@@ -894,6 +909,7 @@
                 // Remove from UI
                 deleteTaskFromUI(taskId, false);
 
+                // Broadcast to other users
                 socket.emit('todo-delete', {
                     listId: currentBoardId,
                     todoId: taskId

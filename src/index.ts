@@ -32,8 +32,19 @@ app.get('/', (req, res) => {
   });
 });
 
+// Store active users per room: roomId -> Map<socketId, userName>
+const activeUsers = new Map<string, Map<string, string>>();
+// Track which rooms each socket is in: socketId -> Set<roomId>
+const socketRooms = new Map<string, Set<string>>();
+
 io.on('connection', (socket) => {
-  socket.on('join-todolist', (listId: string) => {
+  // Track socket rooms
+  socketRooms.set(socket.id, new Set());
+
+  socket.on('join-todolist', (data: { listId: string, userName?: string } | string) => {
+    const listId = typeof data === 'string' ? data : data?.listId;
+    const userName = typeof data === 'object' ? data?.userName : undefined;
+    
     if (!listId || typeof listId !== 'string') return;
 
     const currentRooms = Array.from(socket.rooms);
@@ -41,9 +52,25 @@ io.on('connection', (socket) => {
       socket.join(listId);
     }
     
+    // Track this room for this socket
+    if (!socketRooms.has(socket.id)) {
+      socketRooms.set(socket.id, new Set());
+    }
+    socketRooms.get(socket.id)!.add(listId);
+    
+    // Track user in this room
+    if (userName) {
+      if (!activeUsers.has(listId)) {
+        activeUsers.set(listId, new Map());
+      }
+      activeUsers.get(listId)!.set(socket.id, userName);
+    }
+    
     const room = io.sockets.adapter.rooms.get(listId);
     const userCount = room ? room.size : 0;
-    io.to(listId).emit('user-count-updated', { count: userCount });
+    const users = activeUsers.get(listId) ? Array.from(activeUsers.get(listId)!.values()) : [];
+    
+    io.to(listId).emit('user-count-updated', { count: userCount, users });
   });
 
   socket.on('todo-add', (data: { listId: string, todo: any }) => {
@@ -66,7 +93,10 @@ io.on('connection', (socket) => {
     socket.to(data.listId).emit('todo-toggled', { todoId: data.todoId, completed: data.completed });
   });
 
-  socket.on('join-board', (boardId: string) => {
+  socket.on('join-board', (data: { boardId: string, userName?: string } | string) => {
+    const boardId = typeof data === 'string' ? data : data?.boardId;
+    const userName = typeof data === 'object' ? data?.userName : undefined;
+    
     if (!boardId || typeof boardId !== 'string') return;
 
     const currentRooms = Array.from(socket.rooms);
@@ -74,9 +104,25 @@ io.on('connection', (socket) => {
       socket.join(boardId);
     }
     
+    // Track this room for this socket
+    if (!socketRooms.has(socket.id)) {
+      socketRooms.set(socket.id, new Set());
+    }
+    socketRooms.get(socket.id)!.add(boardId);
+    
+    // Track user in this room
+    if (userName) {
+      if (!activeUsers.has(boardId)) {
+        activeUsers.set(boardId, new Map());
+      }
+      activeUsers.get(boardId)!.set(socket.id, userName);
+    }
+    
     const room = io.sockets.adapter.rooms.get(boardId);
     const userCount = room ? room.size : 0;
-    io.to(boardId).emit('user-count-updated', { count: userCount });
+    const users = activeUsers.get(boardId) ? Array.from(activeUsers.get(boardId)!.values()) : [];
+    
+    io.to(boardId).emit('user-count-updated', { count: userCount, users });
   });
 
   socket.on('draw', (data: { boardId: string, x: number, y: number, color: string }) => {
@@ -85,13 +131,29 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    const roomsToUpdate = Array.from(socket.rooms).filter(roomId => roomId !== socket.id);
+    // Get rooms this socket was in from our tracking
+    const roomsToUpdate = socketRooms.get(socket.id) || new Set();
     
     roomsToUpdate.forEach((roomId) => {
+      // Remove user from active users
+      if (activeUsers.has(roomId)) {
+        activeUsers.get(roomId)!.delete(socket.id);
+        if (activeUsers.get(roomId)!.size === 0) {
+          activeUsers.delete(roomId);
+        }
+      }
+      
+      // Get updated room info (socket is already removed from room at this point)
       const room = io.sockets.adapter.rooms.get(roomId);
       const userCount = room ? room.size : 0;
-      io.to(roomId).emit('user-count-updated', { count: userCount });
+      const users = activeUsers.get(roomId) ? Array.from(activeUsers.get(roomId)!.values()) : [];
+      
+      // Broadcast updated user list to remaining users in the room
+      io.to(roomId).emit('user-count-updated', { count: userCount, users });
     });
+    
+    // Clean up socket room tracking
+    socketRooms.delete(socket.id);
   });
 });
 

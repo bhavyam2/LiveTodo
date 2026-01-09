@@ -15,12 +15,10 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^20.x.x",
-    "prisma": "^5.x.x",
     "ts-node": "^10.x.x",
     "typescript": "^5.x.x"
   },
   "dependencies": {
-    "@prisma/client": "^5.x.x",
     "express": "^5.2.1",
     "socket.io": "^4.7.2"
   }
