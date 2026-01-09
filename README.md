@@ -4,11 +4,7 @@ A real-time collaborative todo list application that enables multiple users to w
 
 ## Demo
 
-[Link to Demo Video](https://www.youtube.com/watch?v=6EzxW7ntpU8)
-
-## Technical Design
-
-[Link to Technical Design Diagram](https://ibb.co/Sw6bFTqd)
+[Link to Demo Video](https://www.youtube.com/watch?v=aUDqxCRAtN0)
 
 ## Features
 
